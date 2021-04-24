@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        const createScene = function() {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = BABYLON.Color3.Black(); // Hintergrundfarbe
+        
+            // Erzeugen einer Camera
+            const camera = new BABYLON.ArcRotateCamera('camera', 0, 0, 0, new BABYLON.Vector3(5, 3, 0), scene);
+            camera.setPosition(new BABYLON.Vector3(10.253, 5.82251, -9.45717));
+            camera.attachControl(canvas, true); // Maus und Tastatur interaktion mit der Camera Position
+        
+            // Erzeugen der Beleuchtung
+            // Generelle Beleuchtung
+            // "Deckenbeleuchtung" / Hemispherische Beleuchtung - scheint überall gleichmäßig in die selbe Richtung
+            const hemisphereLight = new BABYLON.HemisphericLight('hemisphericlight', new BABYLON.Vector3(1, 0.5, 0), scene);
+            hemisphereLight.intensity = 0.2;
+        
+            // Licht der Sonne (Glühbirne) - scheint von einem Punkt aus in alle Richtungen
+            const light = new BABYLON.PointLight('sunlight', BABYLON.Vector3.Zero(), scene);
+            light.intensity = 1;
+        
+            // Erstellen des "Boden" Grids
+            const plane = new BABYLON.MeshBuilder.CreatePlane('floor', { width: 1000, height: 1000 }, scene);
+            plane.position.y -= 8;
+            plane.rotation.x = Math.PI / 2;
+        
+            // Erzeugen und zuweisen eines vorgefertigten Materials
+            const gridMat = new BABYLON.GridMaterial('gridMat', scene);
+            plane.material = gridMat;
+        
+        
+            // show axis
+            const showAxis = function(size, parent) {
+                const makeTextPlane = function(text, color, size) {
+                    const dynamicTexture = new BABYLON.DynamicTexture('DynamicTexture', 50, scene, true);
+                    dynamicTexture.hasAlpha = true;
+                    dynamicTexture.drawText(text, 5, 40, 'bold 36px Arial', color, 'transparent', true);
+                    const plane = new BABYLON.Mesh.CreatePlane('TextPlane', size, scene, true);
+                    plane.material = new BABYLON.StandardMaterial('TextPlaneMaterial', scene);
+                    plane.material.backFaceCulling = false;
+                    plane.material.specularColor = new BABYLON.Color3(0, 0, 0);
+                    plane.material.diffuseTexture = dynamicTexture;
+                    return plane;
+                };
+        
+                const axisX = BABYLON.Mesh.CreateLines('axisX', [
+                    new BABYLON.Vector3.Zero(), new BABYLON.Vector3(size, 0, 0), new BABYLON.Vector3(size * 0.95, 0.05 * size, 0),
+                    new BABYLON.Vector3(size, 0, 0), new BABYLON.Vector3(size * 0.95, -0.05 * size, 0),
+                ], scene);
+                axisX.color = new BABYLON.Color3(1, .5, .5);
+                const xChar = makeTextPlane('X', 'red', size / 5);
+                xChar.position = new BABYLON.Vector3(0.9 * size, -0.05 * size, 0);
+                const axisY = BABYLON.Mesh.CreateLines('axisY', [
+                    new BABYLON.Vector3.Zero(), new BABYLON.Vector3(0, size, 0), new BABYLON.Vector3(-0.05 * size, size * 0.95, 0),
+                    new BABYLON.Vector3(0, size, 0), new BABYLON.Vector3(0.05 * size, size * 0.95, 0),
+                ], scene);
+                axisY.color = new BABYLON.Color3(.5, 1, .5);
+                const yChar = makeTextPlane('Y', 'green', size / 5);
+                yChar.position = new BABYLON.Vector3(0, 0.9 * size, -0.05 * size);
+                const axisZ = BABYLON.Mesh.CreateLines('axisZ', [
+                    new BABYLON.Vector3.Zero(), new BABYLON.Vector3(0, 0, size), new BABYLON.Vector3(0, -0.05 * size, size * 0.95),
+                    new BABYLON.Vector3(0, 0, size), new BABYLON.Vector3(0, 0.05 * size, size * 0.95),
+                ], scene);
+                axisZ.color = new BABYLON.Color3(.5, .5, 1);
+                const zChar = makeTextPlane('Z', 'blue', size / 5);
+                zChar.position = new BABYLON.Vector3(0, 0.05 * size, 0.9 * size);
+        
+                xChar.parent = parent;
+                yChar.parent = parent;
+                zChar.parent = parent;
+        
+                axisX.parent = parent;
+                axisY.parent = parent;
+                axisZ.parent = parent;
+            };
+        
+            const rootNode = new BABYLON.TransformNode('root', scene); // Leeres "Game Object"
+        
+            // Erstellen der Sonne 
+            const sun = BABYLON.MeshBuilder.CreateSphere('sun', { diameter: 7 }, scene);
+            sun.parent = rootNode; // Parent-Child Hierarchie / Scene-Graph
+            showAxis(10, sun);
+        
+            // Erzeugt ein Material mit Texture aufgrund eines Bildes
+            const sunMat = new BABYLON.StandardMaterial('sunmat', scene);
+            sunMat.emissiveTexture = new BABYLON.Texture('/textures/lava/lavatile.jpg', scene);
+            sunMat.diffuseTexture = new BABYLON.Texture('/textures/lava/lavatile.jpg', scene);
+            sun.material = sunMat; // Material der Sonne zuweise
+        
+            // Erstellen der Erde
+            const earth = BABYLON.MeshBuilder.CreateSphere('earth', { diameter: 2 }, scene);
+            earth.parent = rootNode; // Parent-Child Hierarchie / Scene-Graph
+            // Platziere die Erde mit Abstand zur Sonne
+            earth.position.x += 13;
+            earth.position.z += 13;
+            showAxis(4, earth);
+            
+            // Erzeugt ein einfaches Material mit einer Farbe
+            const earthMat = new BABYLON.StandardMaterial('earthmat', scene);
+            earthMat.diffuseColor = new BABYLON.Color3(0.7, 0.64, 1); 
+            earth.material = earthMat; // Parent-Child Hierarchie / Scene-Graph
+        
+            // Erzeugt den Mond
+            const moon = BABYLON.MeshBuilder.CreateSphere('moon', { diameter: .6 }, scene);
+            moon.parent = earth;
+            // Platziere den Mond mit Abstand zur Erde
+            moon.position.x += 3;
+            moon.position.z += 3;
+            showAxis(.7, moon);
+        
+            // Wurfschatten hinzufügen
+            // Erstelle ein Object zur Schattenberechnung aufgrund einer Lichtquelle und regestriere Erde und mond
+            const shadowCaster = new BABYLON.ShadowGenerator(1024, light);
+            shadowCaster.addShadowCaster(earth);
+            shadowCaster.addShadowCaster(moon);
+            // Erde und Mond sollen Schatten "empfangen" können
+            earth.receiveShadows = true;
+            moon.receiveShadows = true;
+        
+            // Funktion die vor jeder Render-Interation ausgeführt wird. (Render-Loop)
+            scene.beforeRender = () => {
+                // Passe die Rotationen der einzelnen Elemente an (Radianten)
+                rootNode.rotation.y += 0.005
+                sun.rotation.y -= 0.004;
+                earth.rotation.y += 0.02;
+            };
+        
+            return scene;
+        };
+                var engine;
+                var scene;
+                initFunction = async function() {               
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene        
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
